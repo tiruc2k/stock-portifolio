@@ -31,6 +31,9 @@ function App() {
   const [etfRange, setEtfRange] = useState('10y'); // 'ytd' | '1y' | '3y' | '5y' | '10y'
   const [etfSector, setEtfSector] = useState('All'); // Sector filter
   const [etfQuote, setEtfQuote] = useState(null);
+  // ETFs UI state
+  const [sectorCollapsed, setSectorCollapsed] = useState({}); // { [sector]: boolean }
+  const [etfExpenseSort, setEtfExpenseSort] = useState('none'); // 'none' | 'low' | 'high'
 
   // Mock popular ETFs data (expense ratios and top holdings)
   const popularETFs = [
@@ -72,7 +75,32 @@ function App() {
   const sectorFilters = ['All','Broad Market','Technology','Financials','Health Care','Energy','Industrials','Consumer Discretionary','Consumer Staples','Materials','Utilities','Real Estate','Communication Services'];
 
   const combinedETFs = [...popularETFs.map(e => ({...e, sector: e.sector || 'Broad Market'})), ...sectorETFs];
-  const displayedETFs = combinedETFs.filter(e => etfSector === 'All' ? true : e.sector === etfSector);
+  const displayedETFs = combinedETFs
+    .filter(e => etfSector === 'All' ? true : e.sector === etfSector)
+    .sort((a, b) => {
+      if (etfExpenseSort === 'low') return a.expenseRatio - b.expenseRatio;
+      if (etfExpenseSort === 'high') return b.expenseRatio - a.expenseRatio;
+      return 0;
+    });
+
+  // Group displayed ETFs by sector for rendering
+  const groupedBySector = displayedETFs.reduce((acc, etf) => {
+    const key = etf.sector || 'Broad Market';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(etf);
+    return acc;
+  }, {});
+
+  const sectorOrder = Object.keys(groupedBySector).sort();
+
+  // Ensure an ETF is always selected: if current selection not in view, select first of displayed
+  useEffect(() => {
+    if (!displayedETFs || displayedETFs.length === 0) return;
+    const exists = displayedETFs.some(e => e.ticker === selectedETF);
+    if (!selectedETF || !exists) {
+      setSelectedETF(displayedETFs[0].ticker);
+    }
+  }, [displayedETFs.length, etfSector, etfExpenseSort, selectedETF]);
 
   // Initialize app with real data
   useEffect(() => {
@@ -492,24 +520,83 @@ function App() {
                   {sf}
                 </button>
               ))}
+              <div className="etf-quick-actions">
+                <button
+                  className={`filter-btn ${etfExpenseSort === 'low' ? 'active' : ''}`}
+                  onClick={() => setEtfExpenseSort(etfExpenseSort === 'low' ? 'none' : 'low')}
+                  title="Sort by lowest expense ratio"
+                >
+                  Lowest expense
+                </button>
+                <button
+                  className={`filter-btn ${etfExpenseSort === 'high' ? 'active' : ''}`}
+                  onClick={() => setEtfExpenseSort(etfExpenseSort === 'high' ? 'none' : 'high')}
+                  title="Sort by highest expense ratio"
+                >
+                  Highest expense
+                </button>
+                <button
+                  className="filter-btn"
+                  onClick={() => {
+                    const next = {};
+                    sectorOrder.forEach(s => { next[s] = false; });
+                    setSectorCollapsed(next);
+                  }}
+                  title="Expand all sectors"
+                >
+                  Expand All
+                </button>
+                <button
+                  className="filter-btn"
+                  onClick={() => {
+                    const next = {};
+                    sectorOrder.forEach(s => { next[s] = true; });
+                    setSectorCollapsed(next);
+                  }}
+                  title="Collapse all sectors"
+                >
+                  Collapse All
+                </button>
+              </div>
             </div>
             <div className="etf-layout">
               <div className="etf-list">
-                <div className="etf-list-header">
-                  <span>Ticker</span>
-                  <span>Name</span>
-                  <span className="right">Expense</span>
-                </div>
-                {displayedETFs.map((etf) => (
-                  <button
-                    key={etf.ticker}
-                    className={`etf-row ${selectedETF === etf.ticker ? 'active' : ''}`}
-                    onClick={() => setSelectedETF(etf.ticker)}
-                  >
-                    <span className="etf-row-ticker">{etf.ticker}</span>
-                    <span className="etf-row-name">{etf.name}</span>
-                    <span className="etf-row-expense">{etf.expenseRatio.toFixed(2)}%</span>
-                  </button>
+                {sectorOrder.map(sector => (
+                  <div key={sector} className="etf-sector-group">
+                    <div
+                      className="etf-sector-header"
+                      onClick={() => setSectorCollapsed(prev => ({ ...prev, [sector]: !prev[sector] }))}
+                    >
+                      <span className="sector-name">{sector}</span>
+                      <span className="sector-meta">{groupedBySector[sector].length} ETFs • {etfExpenseSort === 'low' ? 'Lowest expense' : etfExpenseSort === 'high' ? 'Highest expense' : 'Default order'}</span>
+                      <span className="sector-toggle">{sectorCollapsed[sector] ? '▶' : '▼'}</span>
+                    </div>
+                    {!sectorCollapsed[sector] && (
+                      <table className="etf-table">
+                        <thead>
+                          <tr>
+                            <th style={{width:'90px'}}>Ticker</th>
+                            <th>Name</th>
+                            <th style={{textAlign:'right', width:'110px'}}>Expense</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupedBySector[sector].map((etf) => (
+                            <tr
+                              key={etf.ticker}
+                              className={`etf-table-row ${selectedETF === etf.ticker ? 'active' : ''}`}
+                              onClick={() => setSelectedETF(etf.ticker)}
+                              style={{cursor:'pointer'}}
+                            >
+                              <td className="etf-row-ticker">{etf.ticker}</td>
+                              <td className="etf-row-name">{etf.name}</td>
+                              <td className="etf-row-expense" style={{textAlign:'right'}}>{etf.expenseRatio.toFixed(2)}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 ))}
               </div>
               <div className="etf-detail">

@@ -191,9 +191,10 @@ class StockAPI {
         return { range, interval };
       };
       const { range, interval } = normalizePeriod(period);
+      const bust = Date.now();
 
       const response = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=${interval}`
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=${interval}&_=${bust}`
       );
       const data = await response.json();
 
@@ -205,10 +206,23 @@ class StockAPI {
       const timestamps = result.timestamp;
       const prices = result.indicators.quote[0].close;
 
-      return timestamps.map((timestamp, index) => ({
+      let series = timestamps.map((timestamp, index) => ({
         date: new Date(timestamp * 1000).toLocaleDateString(),
         price: prices[index] || 0
       })).filter(item => item.price > 0);
+
+      // Append today's live price if API data hasn't included today yet
+      try {
+        const today = new Date().toLocaleDateString();
+        if (!series.length || series[series.length - 1].date !== today) {
+          const live = await this.getStockQuote(symbol, { noCache: true });
+          if (live && typeof live.price === 'number' && isFinite(live.price)) {
+            series = [...series, { date: today, price: live.price }];
+          }
+        }
+      } catch (_) {}
+
+      return series;
 
     } catch (error) {
       console.warn(`Yahoo historical failed for ${symbol} (${period}). Trying Finnhub...`, error);
@@ -236,22 +250,35 @@ class StockAPI {
           return { from, resolution };
         };
         const { from, resolution } = computeFromAndRes(lower);
+        const bust2 = Date.now();
 
-        const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
+        const url = `${FINNHUB_BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${from}&to=${to}&token=${FINNHUB_API_KEY}&_=${bust2}`;
         const res = await fetch(url);
         const json = await res.json();
         if (json.s !== 'ok' || !Array.isArray(json.t) || !Array.isArray(json.c)) {
           throw new Error(`Finnhub candle error: ${json.s || 'unknown'}`);
         }
-        return json.t.map((ts, i) => ({
+        let series = json.t.map((ts, i) => ({
           date: new Date(ts * 1000).toLocaleDateString(),
           price: json.c[i] ?? 0
         })).filter(pt => pt.price > 0);
+        // Append live price if today's candle is missing
+        try {
+          const today = new Date().toLocaleDateString();
+          if (!series.length || series[series.length - 1].date !== today) {
+            const live = await this.getStockQuote(symbol, { noCache: true });
+            if (live && typeof live.price === 'number' && isFinite(live.price)) {
+              series = [...series, { date: today, price: live.price }];
+            }
+          }
+        } catch (_) {}
+        return series;
       } catch (fhErr) {
         console.warn(`Finnhub historical failed for ${symbol}. Trying Alpha Vantage...`, fhErr);
         // Alpha Vantage fallback: TIME_SERIES_DAILY_ADJUSTED (compact)
         try {
-          const resp = await fetch(`${BASE_URL}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${encodeURIComponent(symbol)}&apikey=${API_KEY}&outputsize=compact`);
+          const bust3 = Date.now();
+          const resp = await fetch(`${BASE_URL}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${encodeURIComponent(symbol)}&apikey=${API_KEY}&outputsize=compact&_=${bust3}`);
           const av = await resp.json();
           const series = av['Time Series (Daily)'];
           if (!series) throw new Error('Alpha Vantage historical unavailable');
@@ -274,7 +301,18 @@ class StockAPI {
           else if (lower === '3y' || lower === '3yr') trimmed = trimByDays(3 * 365);
           else if (lower === '5y' || lower === '5yr') trimmed = trimByDays(5 * 365);
           else if (lower === '10y' || lower === '10yr') trimmed = trimByDays(10 * 365);
-          return trimmed.map(e => ({ date: new Date(e.date).toLocaleDateString(), price: e.price })).filter(e => e.price > 0);
+          let series3 = trimmed.map(e => ({ date: new Date(e.date).toLocaleDateString(), price: e.price })).filter(e => e.price > 0);
+          // Append live price if today's point missing
+          try {
+            const today = new Date().toLocaleDateString();
+            if (!series3.length || series3[series3.length - 1].date !== today) {
+              const live = await this.getStockQuote(symbol, { noCache: true });
+              if (live && typeof live.price === 'number' && isFinite(live.price)) {
+                series3 = [...series3, { date: today, price: live.price }];
+              }
+            }
+          } catch (_) {}
+          return series3;
         } catch (avErr) {
           console.error(`Historical data error for ${symbol} after Alpha Vantage fallback:`, avErr);
           return this.getFallbackHistoricalData(symbol);
