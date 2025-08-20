@@ -114,7 +114,7 @@ const Dashboard = ({ portfolio, marketData, watchlist }) => {
             <LineChart data={performanceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis />
+              <YAxis tickFormatter={(v) => `$${Number(v).toLocaleString()}`} />
               <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Portfolio Value']} />
               <Line type="monotone" dataKey="value" stroke="#667eea" strokeWidth={3} />
             </LineChart>

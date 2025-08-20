@@ -652,9 +652,26 @@ function App() {
                           <ResponsiveContainer width="100%" height={320}>
                             <LineChart data={etfHistory} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="date" hide={true} />
-                              <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12 }} />
-                              <Tooltip formatter={(v) => [`$${Number(v).toFixed(2)}`, 'Price']} />
+                              <XAxis 
+                                dataKey="date" 
+                                minTickGap={20}
+                                tickFormatter={(value) => {
+                                  const d = new Date(value);
+                                  return isNaN(d) ? value : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+                                }}
+                              />
+                              <YAxis 
+                                domain={['auto', 'auto']} 
+                                tick={{ fontSize: 12 }} 
+                                tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
+                              />
+                              <Tooltip 
+                                formatter={(v) => [`$${Number(v).toFixed(2)}`, 'Price']}
+                                labelFormatter={(label) => {
+                                  const d = new Date(label);
+                                  return isNaN(d) ? `Date: ${label}` : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+                                }}
+                              />
                               <Line type="monotone" dataKey="price" stroke="#667eea" strokeWidth={2} dot={false} />
                             </LineChart>
                           </ResponsiveContainer>

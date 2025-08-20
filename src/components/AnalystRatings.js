@@ -54,7 +54,6 @@ export default function AnalystRatings({ symbol, portfolio = [] }) {
         <div className="section-header">
           <h2>⭐ Analyst Ratiing</h2>
           <span className="muted">Mock data for demo</span>
-          <div className="section-right">Dow Jones</div>
         </div>
       )}
  

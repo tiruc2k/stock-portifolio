@@ -51,7 +51,7 @@ A complete, professional stock portfolio management application built with React
 
 2. **Start the application**
    ```bash
-   python3 start_react.py
+   python3 start_react.py --restart --port 3000
    ```
    
    Or manually:

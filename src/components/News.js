@@ -82,8 +82,7 @@ export default function News({ portfolio = [], watchlist = [] }) {
         </div>
         <div className="card glass">
           <div className="card-header">
-            <h3>Popular</h3>
-           
+            <h3>Popular</h3>      
           </div>
           <List items={popularNews} />
         </div>
@@ -92,7 +91,6 @@ export default function News({ portfolio = [], watchlist = [] }) {
       <div className="card glass" style={{ marginTop: 12 }}>
         <div className="card-header">
           <h3>Other</h3>
-        
         </div>
         <List items={restNews} />
       </div>

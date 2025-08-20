@@ -415,11 +415,27 @@ const StockSearch = ({ onAddToPortfolio, onAddToWatchlist, portfolio, watchlist 
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={historicalData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis domain={['dataMin - 5', 'dataMax + 5']} />
+                <XAxis 
+                  dataKey="date" 
+                  minTickGap={20}
+                  tickFormatter={(value) => {
+                    const d = new Date(value);
+                    return isNaN(d) ? value : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+                  }}
+                />
+                <YAxis 
+                  domain={[
+                    (dataMin) => (typeof dataMin === 'number' ? dataMin - 5 : dataMin),
+                    (dataMax) => (typeof dataMax === 'number' ? dataMax + 5 : dataMax)
+                  ]}
+                  tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
+                />
                 <Tooltip 
                   formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Price']}
-                  labelFormatter={(label) => `Date: ${label}`}
+                  labelFormatter={(label) => {
+                    const d = new Date(label);
+                    return isNaN(d) ? `Date: ${label}` : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+                  }}
                 />
                 <Line 
                   type="monotone" 
